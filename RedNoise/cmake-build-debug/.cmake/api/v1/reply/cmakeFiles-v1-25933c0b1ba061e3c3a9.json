@@ -21,6 +21,11 @@
 		{
 			"isCMake" : true,
 			"isExternal" : true,
+			"path" : "/Users/hiromichiyano/Applications/CLion.app/Contents/bin/cmake/mac/share/cmake-3.26/Modules/CMakeUnixFindMake.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
 			"path" : "/Users/hiromichiyano/Applications/CLion.app/Contents/bin/cmake/mac/share/cmake-3.26/Modules/CMakeSystemSpecificInitialize.cmake"
 		},
 		{
@@ -949,6 +954,21 @@
 		{
 			"isCMake" : true,
 			"isExternal" : true,
+			"path" : "/Users/hiromichiyano/Applications/CLion.app/Contents/bin/cmake/mac/share/cmake-3.26/Modules/CMakeFindCodeBlocks.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Users/hiromichiyano/Applications/CLion.app/Contents/bin/cmake/mac/share/cmake-3.26/Modules/CMakeExtraGeneratorDetermineCompilerMacrosAndIncludeDirs.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
+			"path" : "/Users/hiromichiyano/Applications/CLion.app/Contents/bin/cmake/mac/share/cmake-3.26/Modules/ProcessorCount.cmake"
+		},
+		{
+			"isCMake" : true,
+			"isExternal" : true,
 			"path" : "/Users/hiromichiyano/Applications/CLion.app/Contents/bin/cmake/mac/share/cmake-3.26/Modules/CMakeCInformation.cmake"
 		},
 		{
@@ -1176,8 +1196,8 @@
 	"kind" : "cmakeFiles",
 	"paths" : 
 	{
-		"build" : "/Users/hiromichiyano/Documents/GitHub/CG2023/Weekly Workbooks/01 Introduction and Orientation/extras/RedNoise/cmake-build-debug",
-		"source" : "/Users/hiromichiyano/Documents/GitHub/CG2023/Weekly Workbooks/01 Introduction and Orientation/extras/RedNoise"
+		"build" : "/Users/hiromichiyano/Documents/university/year_3/TB-1/Computer Graphics/CW/Computer-Graphic/RedNoise/cmake-build-debug",
+		"source" : "/Users/hiromichiyano/Documents/university/year_3/TB-1/Computer Graphics/CW/Computer-Graphic/RedNoise"
 	},
 	"version" : 
 	{
