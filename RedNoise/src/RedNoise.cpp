@@ -7,6 +7,33 @@
 #define WIDTH 320
 #define HEIGHT 240
 
+//This function should return an evenly spaced list of size numberOfValues that contains floating point numbers between from and to.
+
+std::vector<float> interpolateSingleFloats(float from, float to, int numberOfValues) {
+    std::vector<float> result;
+    float cal = ((to-from)/(numberOfValues - 1));
+    float currentValue = from;
+    for (int counter = 0; counter < numberOfValues; counter++)
+    {
+        result.push_back(currentValue);
+        currentValue += cal;
+    }
+    return result;
+    // in: 0 to 10, 6
+    // 0, 2, 4, 6, 8, 10
+    // result.push_back(0)
+    // result.push_back(2)
+    // result.push_back(4)
+    // result.push_back(6)
+    // result.push_back(8)
+    // result.push_back(10)
+    // return result
+
+
+
+
+}
+
 void draw(DrawingWindow &window) {
 	window.clearPixels();
 	for (size_t y = 0; y < window.height; y++) {
@@ -35,6 +62,12 @@ void handleEvent(SDL_Event event, DrawingWindow &window) {
 int main(int argc, char *argv[]) {
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, SDL_FALSE);
 	SDL_Event event;
+
+    std::vector<float> result;
+    result = interpolateSingleFloats(2.2, 8.5, 7);
+    for(size_t i=0; i<result.size(); i++) std::cout << result[i] << " ";
+    std::cout << std::endl;
+
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event)) handleEvent(event, window);
