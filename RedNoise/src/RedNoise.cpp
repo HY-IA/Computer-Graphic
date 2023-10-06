@@ -3,6 +3,7 @@
 #include <Utils.h>
 #include <fstream>
 #include <vector>
+#include "glm/vec3.hpp"
 
 #define WIDTH 320
 #define HEIGHT 240
@@ -19,33 +20,26 @@ std::vector<float> interpolateSingleFloats(float from, float to, int numberOfVal
         currentValue += cal;
     }
     return result;
-    // in: 0 to 10, 6
-    // 0, 2, 4, 6, 8, 10
-    // result.push_back(0)
-    // result.push_back(2)
-    // result.push_back(4)
-    // result.push_back(6)
-    // result.push_back(8)
-    // result.push_back(10)
-    // return result
-
-
-
-
 }
 
 void draw(DrawingWindow &window) {
 	window.clearPixels();
+    std::vector<float>grayscales = interpolateSingleFloats(255, 0, WIDTH);
 	for (size_t y = 0; y < window.height; y++) {
 		for (size_t x = 0; x < window.width; x++) {
-			float red = 0.0;
-			float green = rand() % 256;
-			float blue = 0.0;
+			//float red = rand() % 256;
+			//float green = 0.0;
+			//float blue = 0.0;
+
+            float red = grayscales[x];
+            float green = grayscales[x];
+            float blue = grayscales[x];
 			uint32_t colour = (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
 			window.setPixelColour(x, y, colour);
 		}
 	}
 }
+
 
 void handleEvent(SDL_Event event, DrawingWindow &window) {
 	if (event.type == SDL_KEYDOWN) {
@@ -67,6 +61,7 @@ int main(int argc, char *argv[]) {
     result = interpolateSingleFloats(2.2, 8.5, 7);
     for(size_t i=0; i<result.size(); i++) std::cout << result[i] << " ";
     std::cout << std::endl;
+
 
 	while (true) {
 		// We MUST poll for events - otherwise the window will freeze !
