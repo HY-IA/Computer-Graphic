@@ -1,5 +1,6 @@
 #include <CanvasTriangle.h>
 #include <DrawingWindow.h>
+#include <Colour.h>
 #include <Utils.h>
 #include <fstream>
 #include <vector>
@@ -32,6 +33,25 @@ std::vector<glm::vec3> interpolateThreeElementValues (glm::vec3 from, glm::vec3 
         currentValue += cal;
     }
     return result;
+}
+
+void drawLine(DrawingWindow &window, CanvasPoint from, CanvasPoint to, Colour col){
+    float xDiff = to.x - from.y;
+    float yDiff = to.x - from.y;
+
+    float numberOfValues = std:: max(abs (xDiff), abs(yDiff));
+    float xStepSize = xDiff/numberOfValues;
+    float yStepSize = yDiff/numberOfValues;
+
+    for(float i = 0; i <= numberOfValues; i++){
+        float x = from.x + (xStepSize*i);
+        float y = from.y + (yStepSize*i);
+        uint32_t colour = (255 << 24) + (int(col.red) << 16) + (int(col.green) << 8) + int(col.blue);
+        window.setPixelColour(round(x), round(y), colour);
+    }
+
+
+
 }
 
 void draw(DrawingWindow &window) {
@@ -93,6 +113,7 @@ int main(int argc, char *argv[]) {
 	DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, SDL_FALSE);
 	SDL_Event event;
 
+
     std::vector<float> result;
     result = interpolateSingleFloats(2.2, 8.5, 7);
     for(size_t i=0; i<result.size(); i++) std::cout << result[i] << " ";
@@ -100,9 +121,10 @@ int main(int argc, char *argv[]) {
 
 
 	while (true) {
+        drawLine(window, CanvasPoint(0,0), CanvasPoint(WIDTH/2,HEIGHT/2), Colour(255,255,255) );
 		// We MUST poll for events - otherwise the window will freeze !
 		if (window.pollForInputEvents(event)) handleEvent(event, window);
-		draw(window);
+		//draw(window);
 		// Need to render the frame at the end, or nothing actually gets shown on the screen !
 		window.renderFrame();
 	}
