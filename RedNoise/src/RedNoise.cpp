@@ -22,6 +22,18 @@ std::vector<float> interpolateSingleFloats(float from, float to, int numberOfVal
     return result;
 }
 
+std::vector<glm::vec3> interpolateThreeElementValues (glm::vec3 from, glm::vec3 to, int numberOfValues){
+    std::vector<glm::vec3> result;
+    glm::vec3 cal = ((to-from)/ float (numberOfValues - 1));
+    glm::vec3 currentValue = from;
+    for (int counter = 0; counter < numberOfValues; counter++)
+    {
+        result.push_back(currentValue);
+        currentValue += cal;
+    }
+    return result;
+}
+
 void draw(DrawingWindow &window) {
 	window.clearPixels();
     std::vector<float>grayscales = interpolateSingleFloats(255, 0, WIDTH);
@@ -40,6 +52,30 @@ void draw(DrawingWindow &window) {
 	}
 }
 
+void drawRainbow(DrawingWindow &window){
+    window.clearPixels();
+
+   // making the screen to rainbow
+    glm::vec3 topLeft(255, 0, 0);        // red
+    glm::vec3 topRight(0, 0, 255);       // blue
+    glm::vec3 bottomRight(0, 255, 0);    // green
+    glm::vec3 bottomLeft(255, 255, 0);   // yellow
+
+    std::vector<glm::vec3> beginning = interpolateThreeElementValues(topLeft, bottomLeft, HEIGHT);
+    std::vector<glm::vec3> ending = interpolateThreeElementValues(topRight, bottomRight, HEIGHT);
+
+    for(int y = 0; y < HEIGHT; y++){
+        std::vector<glm::vec3> eachrow = interpolateThreeElementValues(beginning[y], ending[y], WIDTH);
+
+        for( int x = 0; x< WIDTH; x++){
+            float red = eachrow[x].r;
+            float green = eachrow[x].g;
+            float blue = eachrow[x].b;
+            uint32_t colour = (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
+            window.setPixelColour(x, y, colour);
+        }
+    }
+}
 
 void handleEvent(SDL_Event event, DrawingWindow &window) {
 	if (event.type == SDL_KEYDOWN) {
