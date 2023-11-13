@@ -16,9 +16,12 @@
 #define WIDTH 320
 #define HEIGHT 240
 
-glm::vec3 cameraPosition = glm::vec3(0.0, 0.0, 5.0);
+glm::vec3 lightPoint = glm::vec3(0.0, 0.5, 0.5);
+glm::vec3 cameraPosition = glm::vec3(0.0, 0.0, 4.0);
 glm::mat3 cameraOrientation = glm::mat3(1.0); // identity matrix //
 float focalLength = 2.0;
+int click = 0;
+
 
 //This function should return an evenly spaced list of size numberOfValues that contains floating point numbers between from and to.
 
@@ -122,8 +125,8 @@ uint32_t cols(Colour colour){
     return  (255 << 24) + (int(colour.red) << 16) + (int(colour.green) << 8) + int(colour.blue);
 
 }
-
 */
+
 
 
 // Drawing the basic line triangle
@@ -151,8 +154,8 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
 
         float zBegin = point0.depth + (y - point0.y) * calDepSlope0;
         float zEnd = point0.depth + (y - point0.y) * calDepSlope2;
-         xBegin = window.width - xBegin; // for orbit
-         xEnd = window.width - xEnd; // for orbit
+        // xBegin = window.width - xBegin; // for orbit
+        // xEnd = window.width - xEnd; // for orbit
 
 
         drawLine(window, CanvasPoint(xBegin, y , zBegin), CanvasPoint(xEnd, y, zEnd), colour, depth);
@@ -163,8 +166,8 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
         float xEnd = point0.x + (y - point0.y) * calSlope2;
         float zBegin = point1.depth + (y - point1.y) * calDepSlope1;
         float zEnd = point0.depth + (y - point0.y) * calDepSlope2;
-         xBegin = window.width - xBegin; // for orbit
-         xEnd = window.width - xEnd;   // for orbit
+        // xBegin = window.width - xBegin; // for orbit
+        // xEnd = window.width - xEnd;   // for orbit
 
 
         drawLine(window, CanvasPoint(xBegin, y, zBegin), CanvasPoint(xEnd, y, zEnd), colour, depth);
@@ -286,15 +289,24 @@ std::vector<std::vector<float>> depthBuffer(int width, int height) {
     return depth;
 }
 
+
+
+
 // Just a wire frame
 void drawWireframeView(DrawingWindow &window, std::vector<ModelTriangle> &modelTriangle, std::vector<std::vector<float>> &depth) {
+    window.clearPixels();
+    std::vector<std::vector<float>> dp = depthBuffer(WIDTH, HEIGHT);
     for(ModelTriangle modelTriangles : modelTriangle) {
         auto v0 = getCanvasIntersectionPoint(modelTriangles.vertices[0], 240);
         auto v1 = getCanvasIntersectionPoint(modelTriangles.vertices[1], 240);
         auto v2 = getCanvasIntersectionPoint(modelTriangles.vertices[2], 240);
-        drawStrokedTriangle(window, CanvasTriangle(v0, v1, v2), modelTriangles.colour, depth);
+        drawStrokedTriangle(window, CanvasTriangle(v0, v1, v2), Colour(255,255,255), dp);
     }
 }
+
+
+
+
 
 // colour with fireframe
 void drawWireframeColour(DrawingWindow &window, std::vector<ModelTriangle> &modelTriangle, std::vector<std::vector<float>> &depth) {
@@ -401,33 +413,153 @@ void drawRainbow(DrawingWindow &window) {
     }
 }
 
+// edge
+
+RayTriangleIntersection getClosestValidIntersection(glm::vec3 cameraPosition, glm::vec3 rayDirection, std::vector<ModelTriangle> triangle){
+
+    // point distance modeltriangle
+    float maxValue = std::numeric_limits<float>::max();
+    auto calResult = RayTriangleIntersection({ 0,0,0}, maxValue, ModelTriangle({0,0,0},
+                                                                            {0,0,0},
+                                                                            {0,0,0},
+                                                                            Colour(0,0,0)), -1);
+    for(int i = 0; i < triangle.size(); i++ ) {
+
+        glm::vec3 e0 = triangle[i].vertices[1] - triangle[i].vertices[0];
+        glm::vec3 e1 = triangle[i].vertices[2] - triangle[i].vertices[0];
+        glm::vec3 SPVector = cameraPosition - triangle[i].vertices[0];
+        glm::mat3 DEMatrix(-rayDirection, e0, e1);
+        glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+
+        if(possibleSolution[1] >= 0 && possibleSolution[1] <= 1 && possibleSolution[2] >= 0 && possibleSolution[2] <= 1 && possibleSolution[1] + possibleSolution[2] < 1 && possibleSolution[0] > 0){
+
+            if(calResult.distanceFromCamera > possibleSolution.x){
+                glm::vec3 intersection = triangle[i].vertices[0] + e0 *possibleSolution.y + e1 * possibleSolution.z;
+                calResult.distanceFromCamera = possibleSolution.x;
+
+                calResult.triangleIndex = i;
+                calResult.intersectionPoint = intersection;
+                calResult.intersectedTriangle = triangle[i];
+            }
+        }
+    }
+    return calResult;
+}
+
+
+// add these to main to run this func
+//drawRasterisedScene(window, modelTriangles, depth);
+void drawRasterisedScene(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
+
+    for(int y = 0; y < window.height; y++){
+        for(int x = 0; x < window.width; x++  ){
+
+            glm::vec3 calculate = cameraPosition + cameraOrientation * glm::vec3 ((x - window.width / 2.0)* (1.0/(window.height * 2.0/3.0)), -((y- window.height / 2.0)*(1.0/(window.height*2.0/3.0))), -focalLength);
+            glm::vec3 rayDirection = glm::vec3(calculate - cameraPosition);
+            RayTriangleIntersection intersection = getClosestValidIntersection(cameraPosition, rayDirection, triangles);
+            if(intersection.distanceFromCamera != std::numeric_limits<float>::infinity()){
+                Colour colour = intersection.intersectedTriangle.colour;
+
+                uint32_t pixcelColor = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+                window.setPixelColour(x, y, pixcelColor);
+
+            }
+        }
+    }
+}
+
+
+
+void drawShadow(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
+    for(int y = 0; y < window.height; y++){
+        for(int x = 0; x < window.width; x++){
+            glm::vec3 calculate = cameraPosition + cameraOrientation * glm::vec3 ((x - window.width / 2.0)* (1.0/(window.height * 2.0/3.0)), -((y- window.height / 2.0)*(1.0/(window.height*2.0/3.0))), -focalLength);
+            glm::vec3 rayDirection = glm::vec3(calculate - cameraPosition);
+            RayTriangleIntersection intersection = getClosestValidIntersection(cameraPosition, rayDirection, triangles);
+            glm::vec3 lightDistance = intersection.intersectionPoint - lightPoint;
+            RayTriangleIntersection light = getClosestValidIntersection(lightPoint, lightDistance, triangles);
+                if (intersection.triangleIndex == light.triangleIndex) {
+                    Colour colour = intersection.intersectedTriangle.colour;
+
+                    uint32_t pixcelColor = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+                    window.setPixelColour(x, y, pixcelColor);
+            }
+        }
+    }
+}
 
 
 
 
 void handleEvent(SDL_Event event, DrawingWindow &window, std::vector<std::vector<float>> &depth ) {
     float translationSpeed = 0.1;
+    float rotation = glm::radians(2.0);
 
     if (event.type == SDL_KEYDOWN) {
         if (event.key.keysym.sym == SDLK_LEFT){
             std::cout << "LEFT" << std::endl;
             cameraPosition.x += translationSpeed;
         }
-
         else if (event.key.keysym.sym == SDLK_RIGHT){
             std::cout << "RIGHT" << std::endl;
             cameraPosition.x -= translationSpeed;
         }
-
         else if (event.key.keysym.sym == SDLK_UP){
             std::cout << "UP" << std::endl;
             cameraPosition.y -= translationSpeed;
         }
-
         else if (event.key.keysym.sym == SDLK_DOWN) {
             std::cout << "DOWN" << std::endl;
             cameraPosition.y += translationSpeed;
         }
+        else if (event.key.keysym.sym == SDLK_s){
+            std::cout << "Zoom down" << std::endl;
+            cameraPosition.z -= translationSpeed;
+        }
+        else if (event.key.keysym.sym == SDLK_g) {
+            std::cout << "Zoom up" << std::endl;
+            cameraPosition.z += translationSpeed;
+        }
+        else if(event.key.keysym.sym == SDLK_a){
+              cameraPosition = glm::mat3 (1,0,0,
+                                                   0, cos(rotation), -sin(rotation),
+                                                   0, sin(rotation), cos(rotation))* cameraPosition;
+
+             // glm::vec3 newCameraPosition =  cameraPosition + glm::vec3(0,1,0);
+             // cameraPosition = glm::vec3(0,0,0) + newCameraPosition;
+
+
+        }
+        else if(event.key.keysym.sym == SDLK_b){
+              cameraPosition = glm::mat3 (1,0,0,
+                                                   0, cos(-rotation), -sin(-rotation),
+                                                   0, sin(-rotation), cos(-rotation))*cameraPosition;
+
+            //glm::vec3 newCameraPosition = cameraPosition + glm::vec3(0,-1,0);
+           // cameraPosition = glm::vec3(0,0,0) + newCameraPosition;
+        }
+        else if(event.key.keysym.sym == SDLK_c){
+            cameraPosition = glm::mat3 ( cos(rotation),0, sin(rotation),
+                                                    0,1,0,
+                                                    -sin(rotation),0, cos(rotation))*cameraPosition;
+
+           // glm::vec3 newCameraPosition = cameraPosition + glm::vec3(1,0,0);
+            //cameraPosition = glm::vec3(0,0,0) + newCameraPosition;
+
+        }
+        else if(event.key.keysym.sym == SDLK_d){
+            cameraPosition = glm::mat3 ( cos(-rotation),0, sin(-rotation),
+                                                    0,1,0,
+                                                    -sin(-rotation),0, cos(-rotation))*  cameraPosition;
+
+            //glm::vec3 newCameraPosition = cameraPosition + glm::vec3(-1,0,0);
+           // cameraPosition = glm::vec3(0,0,0) + newCameraPosition;
+
+        }
+        else if(event.key.keysym.sym == SDLK_q ){click = 1;}
+        else if(event.key.keysym.sym == SDLK_w ){click = 2;}
+        else if(event.key.keysym.sym == SDLK_e ){click = 3;}
+        else if(event.key.keysym.sym == SDLK_r ){click = 4;}
 
         else if (event.key.keysym.sym == SDLK_u) {drawStrokedTriangle(window, RandamisedTriangle(), RandamisedColour(), depth);} // stroked triangle
         else if (event.key.keysym.sym == SDLK_f){ drawFilledTriangle(window, RandamisedTriangle(), RandamisedColour(), depth);} // filled triangle
@@ -443,6 +575,7 @@ int main(int argc, char *argv[]) {
     DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, SDL_FALSE);
     SDL_Event event;
 
+
     std::vector<std::vector<float>> depth = depthBuffer(WIDTH, HEIGHT);
     std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
     std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/cornell-box.obj", mapping, 0.35);
@@ -450,7 +583,7 @@ int main(int argc, char *argv[]) {
     //drawWireframeView(window, modelTriangles);
 
 
-     //std::map<std::string, Colour> mtl = readMtl("./src/cornell-box.mtl");
+    //std::map<std::string, Colour> mtl = readMtl("./src/cornell-box.mtl");
    // std::vector<ModelTriangle> modelTriangle = loadOBJ("./src/cornell-box.obj", 0.35);
 
 
@@ -459,14 +592,29 @@ int main(int argc, char *argv[]) {
 
 
 
+
+
+
+
         //drawStrokedTriangle(window, RandamisedTriangle(), RandamisedColour());
         //drawLine(window, CanvasPoint(0, 0), CanvasPoint(WIDTH / 2, HEIGHT / 2), Colour(255, 255, 255));
         // We MUST poll for events - otherwise the window will freeze !
         if (window.pollForInputEvents(event)) handleEvent(event, window, depth);
-        window.clearPixels();
-        drawWireframeColour(window, modelTriangles, depth );
-        orbit();
+
+        if(click == 1){drawWireframeView(window, modelTriangles, depth );}
+        if(click == 2){ drawWireframeColour(window, modelTriangles, depth);}
+        if(click == 3){drawRasterisedScene(window, modelTriangles, depth);}
+        if(click == 4){drawShadow(window, modelTriangles, depth);}
+
+
+
+        //window.clearPixels();
+        //drawWireframeColour(window, modelTriangles, depth );
+        //orbit();
+        drawShadow(window, modelTriangles, depth);
         //draw(window);
+        //drawRasterisedScene(window, modelTriangles, depth);
+
         // Need to render the frame at the end, or nothing actually gets shown on the screen !
         window.renderFrame();
     }
