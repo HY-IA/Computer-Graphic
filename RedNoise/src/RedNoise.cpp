@@ -128,7 +128,6 @@ uint32_t cols(Colour colour){
 */
 
 
-
 // Drawing the basic line triangle
 void drawStrokedTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour colour, std::vector<std::vector<float>> &depth) {
     drawLine(window, triangle.v2(), triangle.v1(), colour,depth ), drawLine(window, triangle.v1(), triangle.v0(), colour, depth),drawLine(window, triangle.v0(), triangle.v2(), colour, depth);
@@ -158,7 +157,7 @@ void drawFilledTriangle(DrawingWindow &window, CanvasTriangle triangle, Colour c
         // xEnd = window.width - xEnd; // for orbit
 
 
-        drawLine(window, CanvasPoint(xBegin, y , zBegin), CanvasPoint(xEnd, y, zEnd), colour, depth);
+        drawLine(window, CanvasPoint(round(xBegin), round(y) , zBegin), CanvasPoint(round(xEnd), round(y), zEnd), colour, depth);
     }
 
     for(float y = point1.y; y <= point2.y; y++) {
@@ -388,30 +387,7 @@ void draw(DrawingWindow &window) {
 
 
 
-void drawRainbow(DrawingWindow &window) {
-    window.clearPixels();
 
-    // making the screen to rainbow
-    glm::vec3 topLeft(255, 0, 0);        // red
-    glm::vec3 topRight(0, 0, 255);       // blue
-    glm::vec3 bottomRight(0, 255, 0);    // green
-    glm::vec3 bottomLeft(255, 255, 0);   // yellow
-
-    std::vector<glm::vec3> beginning = interpolateThreeElementValues(topLeft, bottomLeft, HEIGHT);
-    std::vector<glm::vec3> ending = interpolateThreeElementValues(topRight, bottomRight, HEIGHT);
-
-    for (int y = 0; y < HEIGHT; y++) {
-        std::vector<glm::vec3> eachrow = interpolateThreeElementValues(beginning[y], ending[y], WIDTH);
-
-        for (int x = 0; x < WIDTH; x++) {
-            float red = eachrow[x].r;
-            float green = eachrow[x].g;
-            float blue = eachrow[x].b;
-            uint32_t colour = (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
-            window.setPixelColour(x, y, colour);
-        }
-    }
-}
 
 // edge
 
@@ -454,8 +430,8 @@ void drawRasterisedScene(DrawingWindow &window, const std::vector<ModelTriangle>
     for(int y = 0; y < window.height; y++){
         for(int x = 0; x < window.width; x++  ){
 
-            glm::vec3 calculate = cameraPosition + cameraOrientation * glm::vec3 ((x - window.width / 2.0)* (1.0/(window.height * 2.0/3.0)), -((y- window.height / 2.0)*(1.0/(window.height*2.0/3.0))), -focalLength);
-            glm::vec3 rayDirection = glm::vec3(calculate - cameraPosition);
+            glm::vec3 calculateDirection = cameraPosition + cameraOrientation * glm::vec3 ((x - window.width / 2.0)* (1.0/(window.height * 2.0/3.0)), -((y- window.height / 2.0)*(1.0/(window.height*2.0/3.0))), -focalLength);
+            glm::vec3 rayDirection = glm::vec3(calculateDirection - cameraPosition);
             RayTriangleIntersection intersection = getClosestValidIntersection(cameraPosition, rayDirection, triangles);
             if(intersection.distanceFromCamera != std::numeric_limits<float>::infinity()){
                 Colour colour = intersection.intersectedTriangle.colour;
@@ -470,11 +446,15 @@ void drawRasterisedScene(DrawingWindow &window, const std::vector<ModelTriangle>
 
 
 
+
+/*
+
+//original shadow
 void drawShadow(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
     for(int y = 0; y < window.height; y++){
         for(int x = 0; x < window.width; x++){
-            glm::vec3 calculate = cameraPosition + cameraOrientation * glm::vec3 ((x - window.width / 2.0)* (1.0/(window.height * 2.0/3.0)), -((y- window.height / 2.0)*(1.0/(window.height*2.0/3.0))), -focalLength);
-            glm::vec3 rayDirection = glm::vec3(calculate - cameraPosition);
+            glm::vec3 calculateDirection = cameraPosition + cameraOrientation * glm::vec3 ((x - window.width / 2.0)* (1.0/(window.height * 2.0/3.0)), -((y- window.height / 2.0)*(1.0/(window.height*2.0/3.0))), -focalLength);
+            glm::vec3 rayDirection = glm::vec3(calculateDirection - cameraPosition);
             RayTriangleIntersection intersection = getClosestValidIntersection(cameraPosition, rayDirection, triangles);
             glm::vec3 lightDistance = intersection.intersectionPoint - lightPoint;
             RayTriangleIntersection light = getClosestValidIntersection(lightPoint, lightDistance, triangles);
@@ -482,6 +462,58 @@ void drawShadow(DrawingWindow &window, const std::vector<ModelTriangle> &triangl
                     Colour colour = intersection.intersectedTriangle.colour;
 
                     uint32_t pixcelColor = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+                    window.setPixelColour(x, y, pixcelColor);
+            }
+        }
+    }
+}
+
+
+*/
+
+float proximityLight(glm::vec3 intersectionPoint){
+    float distance = glm::length(lightPoint - intersectionPoint);
+    float brightness = 9 / (4.0 * M_PI * distance * distance);
+    if(brightness > 1.0) brightness = 1.0;
+    return brightness;
+}
+
+float angleOfIncidentLighting(glm::vec3 lightDirection, glm::vec3 normal){
+    glm::vec3 dotProduct = glm::normalize(lightPoint - lightDirection);
+    float angleIncident = std::max(0.0f, glm::dot(normal, dotProduct));
+    if (angleIncident > 1) angleIncident = 1;
+    return angleIncident;
+}
+
+
+//drawDiffuseSpecularAmbient(window, modelTriangles, depth);
+void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
+    for(int y = 0; y < window.height; y++){
+        for(int x = 0; x < window.width; x++){
+            glm::vec3 calculateDirection = cameraPosition + cameraOrientation * glm::vec3 ((x - window.width / 2.0)* (1.0/(window.height * 2.0/3.0)), -((y- window.height / 2.0)*(1.0/(window.height*2.0/3.0))), -focalLength);
+            glm::vec3 rayDirection = glm::normalize(calculateDirection - cameraPosition);
+            RayTriangleIntersection intersection = getClosestValidIntersection(cameraPosition, rayDirection, triangles);
+
+            ModelTriangle normTriangle = intersection.intersectedTriangle;
+            glm::vec3 e1 = normTriangle.vertices[1] - normTriangle.vertices[0];
+            glm::vec3 e2 = normTriangle.vertices[2] - normTriangle.vertices[0];
+            normTriangle.normal = glm::normalize(glm::cross(e1, e2));
+
+            if(intersection.distanceFromCamera != std::numeric_limits<float>::max()){
+            glm::vec3 lightDistance = intersection.intersectionPoint - lightPoint;
+            RayTriangleIntersection light = getClosestValidIntersection(lightPoint, lightDistance, triangles);
+            //if (intersection.distanceFromCamera >= glm::distance(lightPoint, intersection.intersectionPoint) && intersection.triangleIndex == light.triangleIndex) {
+                Colour colour = normTriangle.colour;
+                float proximity = proximityLight(intersection.intersectionPoint);
+                float incidence = angleOfIncidentLighting(intersection.intersectionPoint, normTriangle.normal);
+                float brightness = proximity * incidence;
+
+                colour.red *= brightness;
+                colour.blue *= brightness;
+                colour.green *= brightness;
+
+                uint32_t pixcelColor = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+
                     window.setPixelColour(x, y, pixcelColor);
             }
         }
@@ -512,21 +544,18 @@ void handleEvent(SDL_Event event, DrawingWindow &window, std::vector<std::vector
             std::cout << "DOWN" << std::endl;
             cameraPosition.y += translationSpeed;
         }
-        else if (event.key.keysym.sym == SDLK_s){
-            std::cout << "Zoom down" << std::endl;
+        else if (event.key.keysym.sym == SDLK_g){
+            std::cout << "Zoom up" << std::endl;
             cameraPosition.z -= translationSpeed;
         }
-        else if (event.key.keysym.sym == SDLK_g) {
-            std::cout << "Zoom up" << std::endl;
+        else if (event.key.keysym.sym == SDLK_s) {
+            std::cout << "Zoom down" << std::endl;
             cameraPosition.z += translationSpeed;
         }
         else if(event.key.keysym.sym == SDLK_a){
               cameraPosition = glm::mat3 (1,0,0,
                                                    0, cos(rotation), -sin(rotation),
                                                    0, sin(rotation), cos(rotation))* cameraPosition;
-
-             // glm::vec3 newCameraPosition =  cameraPosition + glm::vec3(0,1,0);
-             // cameraPosition = glm::vec3(0,0,0) + newCameraPosition;
 
 
         }
@@ -535,16 +564,12 @@ void handleEvent(SDL_Event event, DrawingWindow &window, std::vector<std::vector
                                                    0, cos(-rotation), -sin(-rotation),
                                                    0, sin(-rotation), cos(-rotation))*cameraPosition;
 
-            //glm::vec3 newCameraPosition = cameraPosition + glm::vec3(0,-1,0);
-           // cameraPosition = glm::vec3(0,0,0) + newCameraPosition;
         }
         else if(event.key.keysym.sym == SDLK_c){
             cameraPosition = glm::mat3 ( cos(rotation),0, sin(rotation),
                                                     0,1,0,
                                                     -sin(rotation),0, cos(rotation))*cameraPosition;
 
-           // glm::vec3 newCameraPosition = cameraPosition + glm::vec3(1,0,0);
-            //cameraPosition = glm::vec3(0,0,0) + newCameraPosition;
 
         }
         else if(event.key.keysym.sym == SDLK_d){
@@ -552,8 +577,6 @@ void handleEvent(SDL_Event event, DrawingWindow &window, std::vector<std::vector
                                                     0,1,0,
                                                     -sin(-rotation),0, cos(-rotation))*  cameraPosition;
 
-            //glm::vec3 newCameraPosition = cameraPosition + glm::vec3(-1,0,0);
-           // cameraPosition = glm::vec3(0,0,0) + newCameraPosition;
 
         }
         else if(event.key.keysym.sym == SDLK_q ){click = 1;}
@@ -604,16 +627,17 @@ int main(int argc, char *argv[]) {
         if(click == 1){drawWireframeView(window, modelTriangles, depth );}
         if(click == 2){ drawWireframeColour(window, modelTriangles, depth);}
         if(click == 3){drawRasterisedScene(window, modelTriangles, depth);}
-        if(click == 4){drawShadow(window, modelTriangles, depth);}
+       // if(click == 4){drawShadow(window, modelTriangles, depth);}
 
 
 
         //window.clearPixels();
         //drawWireframeColour(window, modelTriangles, depth );
         //orbit();
-        drawShadow(window, modelTriangles, depth);
+        //drawShadow(window, modelTriangles, depth);
         //draw(window);
         //drawRasterisedScene(window, modelTriangles, depth);
+        drawDiffuseSpecularAmbient(window, modelTriangles, depth);
 
         // Need to render the frame at the end, or nothing actually gets shown on the screen !
         window.renderFrame();
