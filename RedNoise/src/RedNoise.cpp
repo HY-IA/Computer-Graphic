@@ -447,7 +447,7 @@ void drawRasterisedScene(DrawingWindow &window, const std::vector<ModelTriangle>
 
 
 
-/*
+
 
 //original shadow
 void drawShadow(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
@@ -469,7 +469,6 @@ void drawShadow(DrawingWindow &window, const std::vector<ModelTriangle> &triangl
 }
 
 
-*/
 
 float proximityLight(glm::vec3 intersectionPoint){
     float distance = glm::length(lightPoint - intersectionPoint);
@@ -485,8 +484,18 @@ float angleOfIncidentLighting(glm::vec3 lightDirection, glm::vec3 normal){
     return angleIncident;
 }
 
+float specularLighting (glm::vec3 intersectionPoint, glm::vec3 normal, float size){
+    glm::vec3 lightDirection = glm::normalize(lightPoint - intersectionPoint);
+    glm::vec3 cameraDistance = glm::normalize(cameraPosition - intersectionPoint);
+    glm::vec3 reflection = glm::reflect(-lightDirection, normal);
 
-//drawDiffuseSpecularAmbient(window, modelTriangles, depth);
+    return pow(std::max(glm::dot(cameraDistance,reflection), 0.0f), size);
+
+}
+
+
+
+
 void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
     for(int y = 0; y < window.height; y++){
         for(int x = 0; x < window.width; x++){
@@ -500,13 +509,15 @@ void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTr
             normTriangle.normal = glm::normalize(glm::cross(e1, e2));
 
             if(intersection.distanceFromCamera != std::numeric_limits<float>::max()){
-            glm::vec3 lightDistance = intersection.intersectionPoint - lightPoint;
-            RayTriangleIntersection light = getClosestValidIntersection(lightPoint, lightDistance, triangles);
-            //if (intersection.distanceFromCamera >= glm::distance(lightPoint, intersection.intersectionPoint) && intersection.triangleIndex == light.triangleIndex) {
+                glm::vec3 lightDistance = intersection.intersectionPoint - lightPoint;
+                RayTriangleIntersection light = getClosestValidIntersection(lightPoint, lightDistance, triangles);
+                //if (intersection.distanceFromCamera >= glm::distance(lightPoint, intersection.intersectionPoint) && intersection.triangleIndex == light.triangleIndex) {
                 Colour colour = normTriangle.colour;
                 float proximity = proximityLight(intersection.intersectionPoint);
                 float incidence = angleOfIncidentLighting(intersection.intersectionPoint, normTriangle.normal);
-                float brightness = proximity * incidence;
+                float specular = specularLighting(intersection.intersectionPoint, normTriangle.normal ,128); // 64 or 128 or 256
+                float brightness = (proximity * incidence) + specular;
+
 
                 colour.red *= brightness;
                 colour.blue *= brightness;
@@ -514,7 +525,7 @@ void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTr
 
                 uint32_t pixcelColor = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
 
-                    window.setPixelColour(x, y, pixcelColor);
+                window.setPixelColour(x, y, pixcelColor);
             }
         }
     }
@@ -631,7 +642,7 @@ int main(int argc, char *argv[]) {
 
 
 
-        //window.clearPixels();
+        window.clearPixels();
         //drawWireframeColour(window, modelTriangles, depth );
         //orbit();
         //drawShadow(window, modelTriangles, depth);
