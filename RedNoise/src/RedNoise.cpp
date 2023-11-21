@@ -317,7 +317,7 @@ void drawWireframeColour(DrawingWindow &window, std::vector<ModelTriangle> &mode
         auto v1 = getCanvasIntersectionPoint(modelTriangles.vertices[1], 240);
         auto v2 = getCanvasIntersectionPoint(modelTriangles.vertices[2], 240);
         canvastriangle = CanvasTriangle(v0, v1, v2);
-        drawFilledTriangle(window, canvastriangle, modelTriangles.colour, dp);
+        drawFilledTriangle(window, canvastriangle, Colour(255,0,0), dp);
     }
 }
 
@@ -488,15 +488,21 @@ float specularLighting (glm::vec3 intersectionPoint, glm::vec3 normal, float siz
     glm::vec3 lightDirection = glm::normalize(lightPoint - intersectionPoint);
     glm::vec3 cameraDistance = glm::normalize(cameraPosition - intersectionPoint);
     glm::vec3 reflection = glm::reflect(-lightDirection, normal);
-
     return pow(std::max(glm::dot(cameraDistance,reflection), 0.0f), size);
+}
+
+float ambientLight(float ambient){
+    return ambient;
 
 }
 
 
 
-
+//drawDiffuseSpecularAmbient(window, modelTriangles, depth);
 void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
+    float ambient = 0.2;
+    float lvl = 0.3;
+
     for(int y = 0; y < window.height; y++){
         for(int x = 0; x < window.width; x++){
             glm::vec3 calculateDirection = cameraPosition + cameraOrientation * glm::vec3 ((x - window.width / 2.0)* (1.0/(window.height * 2.0/3.0)), -((y- window.height / 2.0)*(1.0/(window.height*2.0/3.0))), -focalLength);
@@ -509,23 +515,37 @@ void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTr
             normTriangle.normal = glm::normalize(glm::cross(e1, e2));
 
             if(intersection.distanceFromCamera != std::numeric_limits<float>::max()){
-                glm::vec3 lightDistance = intersection.intersectionPoint - lightPoint;
-                RayTriangleIntersection light = getClosestValidIntersection(lightPoint, lightDistance, triangles);
-                //if (intersection.distanceFromCamera >= glm::distance(lightPoint, intersection.intersectionPoint) && intersection.triangleIndex == light.triangleIndex) {
+
                 Colour colour = normTriangle.colour;
+                glm::vec3 lightDistances = intersection.intersectionPoint - lightPoint;
+
+            RayTriangleIntersection light = getClosestValidIntersection(lightPoint, lightDistances, triangles);
+            if (intersection.distanceFromCamera >= glm::distance(lightPoint, intersection.intersectionPoint)
+            && intersection.triangleIndex == light.triangleIndex) {
                 float proximity = proximityLight(intersection.intersectionPoint);
                 float incidence = angleOfIncidentLighting(intersection.intersectionPoint, normTriangle.normal);
-                float specular = specularLighting(intersection.intersectionPoint, normTriangle.normal ,128); // 64 or 128 or 256
-                float brightness = (proximity * incidence) + specular;
+              //  float specular = specularLighting(intersection.intersectionPoint, normTriangle.normal,8); // 64 or 128 or 256
+                float ambients = ambientLight(ambient);
+                float brightness = ambients + (proximity * incidence);
 
-
-                colour.red *= brightness;
-                colour.blue *= brightness;
-                colour.green *= brightness;
+                colour.red = std::min(colour.red * brightness, 255.0f);
+                colour.green = std::min(colour.green *  brightness, 255.0f);
+                colour.blue = std::min(colour.blue * brightness, 255.0f);
 
                 uint32_t pixcelColor = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
 
                 window.setPixelColour(x, y, pixcelColor);
+                } else {
+
+                colour.red *= lvl;
+                colour.green *= lvl;
+                colour.blue *= lvl;
+
+                uint32_t pixcelColor = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+
+                window.setPixelColour(x, y, pixcelColor);
+
+            }
             }
         }
     }
@@ -536,7 +556,7 @@ void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTr
 
 void handleEvent(SDL_Event event, DrawingWindow &window, std::vector<std::vector<float>> &depth ) {
     float translationSpeed = 0.1;
-    float rotation = glm::radians(2.0);
+    float rotation = glm::radians(5.0);
 
     if (event.type == SDL_KEYDOWN) {
         if (event.key.keysym.sym == SDLK_LEFT){
@@ -564,29 +584,30 @@ void handleEvent(SDL_Event event, DrawingWindow &window, std::vector<std::vector
             cameraPosition.z += translationSpeed;
         }
         else if(event.key.keysym.sym == SDLK_a){
-              cameraPosition = glm::mat3 (1,0,0,
+              cameraPosition =  cameraPosition * glm::mat3 (1,0,0,
                                                    0, cos(rotation), -sin(rotation),
-                                                   0, sin(rotation), cos(rotation))* cameraPosition;
+                                                   0, sin(rotation), cos(rotation));
+
 
 
         }
         else if(event.key.keysym.sym == SDLK_b){
-              cameraPosition = glm::mat3 (1,0,0,
+              cameraPosition = cameraPosition  * glm::mat3 (1,0,0,
                                                    0, cos(-rotation), -sin(-rotation),
-                                                   0, sin(-rotation), cos(-rotation))*cameraPosition;
+                                                   0, sin(-rotation), cos(-rotation));
 
         }
         else if(event.key.keysym.sym == SDLK_c){
-            cameraPosition = glm::mat3 ( cos(rotation),0, sin(rotation),
+            cameraPosition = cameraPosition * glm::mat3 ( cos(rotation),0, sin(rotation),
                                                     0,1,0,
-                                                    -sin(rotation),0, cos(rotation))*cameraPosition;
+                                                    -sin(rotation),0, cos(rotation));
 
 
         }
         else if(event.key.keysym.sym == SDLK_d){
-            cameraPosition = glm::mat3 ( cos(-rotation),0, sin(-rotation),
+            cameraPosition = cameraPosition * glm::mat3 ( cos(-rotation),0, sin(-rotation),
                                                     0,1,0,
-                                                    -sin(-rotation),0, cos(-rotation))*  cameraPosition;
+                                                    -sin(-rotation),0, cos(-rotation));
 
 
         }
@@ -602,6 +623,7 @@ void handleEvent(SDL_Event event, DrawingWindow &window, std::vector<std::vector
     } else if (event.type == SDL_MOUSEBUTTONDOWN) {
         window.savePPM("output.ppm");
         window.saveBMP("output.bmp");
+
     }
 }
 
@@ -613,6 +635,9 @@ int main(int argc, char *argv[]) {
     std::vector<std::vector<float>> depth = depthBuffer(WIDTH, HEIGHT);
     std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
     std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/cornell-box.obj", mapping, 0.35);
+
+    //std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
+    //std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/sphere.obj", mapping, 0.35);
 
     //drawWireframeView(window, modelTriangles);
 
