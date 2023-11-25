@@ -317,7 +317,7 @@ void drawWireframeColour(DrawingWindow &window, std::vector<ModelTriangle> &mode
         auto v1 = getCanvasIntersectionPoint(modelTriangles.vertices[1], 240);
         auto v2 = getCanvasIntersectionPoint(modelTriangles.vertices[2], 240);
         canvastriangle = CanvasTriangle(v0, v1, v2);
-        drawFilledTriangle(window, canvastriangle, Colour(255,0,0), dp);
+        drawFilledTriangle(window, canvastriangle, modelTriangles.colour, dp);
     }
 }
 
@@ -515,7 +515,6 @@ void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTr
             normTriangle.normal = glm::normalize(glm::cross(e1, e2));
 
             if(intersection.distanceFromCamera != std::numeric_limits<float>::max()){
-
                 Colour colour = normTriangle.colour;
                 glm::vec3 lightDistances = intersection.intersectionPoint - lightPoint;
 
@@ -524,9 +523,9 @@ void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTr
             && intersection.triangleIndex == light.triangleIndex) {
                 float proximity = proximityLight(intersection.intersectionPoint);
                 float incidence = angleOfIncidentLighting(intersection.intersectionPoint, normTriangle.normal);
-              //  float specular = specularLighting(intersection.intersectionPoint, normTriangle.normal,8); // 64 or 128 or 256
+                float specular = specularLighting(intersection.intersectionPoint, normTriangle.normal,128); // 64 or 128 or 256
                 float ambients = ambientLight(ambient);
-                float brightness = ambients + (proximity * incidence);
+                float brightness = ambients + (proximity * incidence) + specular;
 
                 colour.red = std::min(colour.red * brightness, 255.0f);
                 colour.green = std::min(colour.green *  brightness, 255.0f);
@@ -611,6 +610,19 @@ void handleEvent(SDL_Event event, DrawingWindow &window, std::vector<std::vector
 
 
         }
+        else if(event.key.keysym.sym == SDLK_m){
+            lightPoint.x += translationSpeed;
+        }
+        else if(event.key.keysym.sym == SDLK_n){
+            lightPoint.x -= translationSpeed;
+        }
+        else if(event.key.keysym.sym == SDLK_l){
+            lightPoint.y += translationSpeed;
+        }
+        else if(event.key.keysym.sym == SDLK_k){
+            lightPoint.y -= translationSpeed;
+        }
+
         else if(event.key.keysym.sym == SDLK_q ){click = 1;}
         else if(event.key.keysym.sym == SDLK_w ){click = 2;}
         else if(event.key.keysym.sym == SDLK_e ){click = 3;}
@@ -633,8 +645,8 @@ int main(int argc, char *argv[]) {
 
 
     std::vector<std::vector<float>> depth = depthBuffer(WIDTH, HEIGHT);
-    std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
-    std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/cornell-box.obj", mapping, 0.35);
+     std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
+     std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/cornell-box.obj", mapping, 0.35);
 
     //std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
     //std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/sphere.obj", mapping, 0.35);
