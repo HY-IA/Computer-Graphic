@@ -246,7 +246,7 @@ std::vector<ModelTriangle> loadOBJ(const std::string &filepath, const std::map<s
     std::vector<ModelTriangle> modelTriangles;
     std::ifstream file(filepath);
     std::string line;
-    Colour col;
+    Colour col = {255, 0, 0};
 
     while (std::getline(file, line)){
         std::vector<std::string> element = split(line, ' ');
@@ -426,7 +426,7 @@ RayTriangleIntersection getClosestValidIntersection(glm::vec3 cameraPosition, gl
 // add these to main to run this func
 //drawRasterisedScene(window, modelTriangles, depth);
 void drawRasterisedScene(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
-
+    window.clearPixels();
     for(int y = 0; y < window.height; y++){
         for(int x = 0; x < window.width; x++  ){
 
@@ -451,6 +451,7 @@ void drawRasterisedScene(DrawingWindow &window, const std::vector<ModelTriangle>
 
 //original shadow
 void drawShadow(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
+    window.clearPixels();
     for(int y = 0; y < window.height; y++){
         for(int x = 0; x < window.width; x++){
             glm::vec3 calculateDirection = cameraPosition + cameraOrientation * glm::vec3 ((x - window.width / 2.0)* (1.0/(window.height * 2.0/3.0)), -((y- window.height / 2.0)*(1.0/(window.height*2.0/3.0))), -focalLength);
@@ -500,6 +501,7 @@ float ambientLight(float ambient){
 
 //drawDiffuseSpecularAmbient(window, modelTriangles, depth);
 void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
+    window.clearPixels();
     float ambient = 0.2;
     float lvl = 0.3;
 
@@ -550,6 +552,44 @@ void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTr
     }
 }
 
+
+
+void drawDiffuseSpecularAmbientSphere(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
+    float ambient = 0.2;
+
+
+    for(int y = 0; y < window.height; y++){
+        for(int x = 0; x < window.width; x++){
+            glm::vec3 calculateDirection = cameraPosition + cameraOrientation * glm::vec3 ((x - window.width / 2.0)* (1.0/(window.height * 2.0/3.0)), -((y- window.height / 2.0)*(1.0/(window.height*2.0/3.0))), -focalLength);
+            glm::vec3 rayDirection = glm::normalize(calculateDirection - cameraPosition);
+            RayTriangleIntersection intersection = getClosestValidIntersection(cameraPosition, rayDirection, triangles);
+
+            if(intersection.distanceFromCamera != std::numeric_limits<float>::max()){
+
+
+                glm::vec3 lightDistances = glm::normalize(intersection.intersectionPoint - lightPoint );
+                //glm::vec3 lightDistances = intersection.intersectionPoint - lightPoint;
+
+                    glm::vec3 norm = glm::normalize(intersection.intersectionPoint- glm::vec3 (0,0,0));
+                    float proximity = proximityLight(intersection.intersectionPoint);
+                    float incidence = angleOfIncidentLighting(lightDistances, norm);
+                    float specular = specularLighting(intersection.intersectionPoint, norm,256); // 64 or 128 or 256
+                    float ambients = ambientLight(ambient);
+                    float brightness = ambients + (proximity * incidence) + specular;
+                    Colour colour = intersection.intersectedTriangle.colour;
+
+                    colour.red = std::min(colour.red * brightness, 255.0f);
+                    colour.green = std::min(colour.green *  brightness, 255.0f);
+                    colour.blue = std::min(colour.blue * brightness, 255.0f);
+
+                    uint32_t pixcelColor = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+
+                    window.setPixelColour(x, y, pixcelColor);
+                }
+            }
+        }
+
+}
 
 
 
@@ -627,12 +667,13 @@ void handleEvent(SDL_Event event, DrawingWindow &window, std::vector<std::vector
         else if(event.key.keysym.sym == SDLK_w ){click = 2;}
         else if(event.key.keysym.sym == SDLK_e ){click = 3;}
         else if(event.key.keysym.sym == SDLK_r ){click = 4;}
+        else if(event.key.keysym.sym == SDLK_t ){click = 5;}
 
         else if (event.key.keysym.sym == SDLK_u) {drawStrokedTriangle(window, RandamisedTriangle(), RandamisedColour(), depth);} // stroked triangle
         else if (event.key.keysym.sym == SDLK_f){ drawFilledTriangle(window, RandamisedTriangle(), RandamisedColour(), depth);} // filled triangle
        // else if (event.key.keysym.sym == SDLK_j){ draws(window);} // texture mapping
         else if(event.key.keysym.sym == SDLK_o){}
-    } else if (event.type == SDL_MOUSEBUTTONDOWN) {
+    } else if (event.key.keysym.sym == SDLK_p) {
         window.savePPM("output.ppm");
         window.saveBMP("output.bmp");
 
@@ -645,11 +686,11 @@ int main(int argc, char *argv[]) {
 
 
     std::vector<std::vector<float>> depth = depthBuffer(WIDTH, HEIGHT);
-     std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
-     std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/cornell-box.obj", mapping, 0.35);
+    // std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
+    // std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/cornell-box.obj", mapping, 0.35);
 
-    //std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
-    //std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/sphere.obj", mapping, 0.35);
+    std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
+    std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/sphere.obj", mapping, 0.35);
 
     //drawWireframeView(window, modelTriangles);
 
@@ -673,9 +714,10 @@ int main(int argc, char *argv[]) {
         if (window.pollForInputEvents(event)) handleEvent(event, window, depth);
 
         if(click == 1){drawWireframeView(window, modelTriangles, depth );}
-        if(click == 2){ drawWireframeColour(window, modelTriangles, depth);}
-        if(click == 3){drawRasterisedScene(window, modelTriangles, depth);}
-       // if(click == 4){drawShadow(window, modelTriangles, depth);}
+        if(click == 2){drawWireframeColour(window, modelTriangles, depth);}
+        if(click == 3){drawShadow(window, modelTriangles, depth);}
+        if(click == 4){drawRasterisedScene(window, modelTriangles, depth);}
+        if(click == 5){drawDiffuseSpecularAmbient(window, modelTriangles, depth);}
 
 
 
@@ -685,7 +727,8 @@ int main(int argc, char *argv[]) {
         //drawShadow(window, modelTriangles, depth);
         //draw(window);
         //drawRasterisedScene(window, modelTriangles, depth);
-        drawDiffuseSpecularAmbient(window, modelTriangles, depth);
+         //drawDiffuseSpecularAmbient(window, modelTriangles, depth);
+        drawDiffuseSpecularAmbientSphere(window, modelTriangles, depth);
 
         // Need to render the frame at the end, or nothing actually gets shown on the screen !
         window.renderFrame();
