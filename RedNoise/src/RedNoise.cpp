@@ -497,10 +497,88 @@ float ambientLight(float ambient){
 
 }
 
+std::vector<glm::vec3> initSoftpoints(glm::vec3 lightPoint, int pSample, float rads){
+    std::vector<glm::vec3> result;
+
+    for(int i = 0; i < pSample; i++){
+
+        float angle = float (rand()) / float (RAND_MAX *2.0 * M_PI);
+        float rad   =  rads* sqrt((rand()) / float (RAND_MAX));
+        float x = rad * cosf(angle);
+        float y = rad * sinf(angle);
+
+        result.push_back(lightPoint + glm::vec3(x,y,0.0) );
+
+    }
+    return result;
+}
+
+
+
+
+float calSoftshadow(glm::vec3 intersectionPoint, std::vector<glm::vec3> points, std::vector<ModelTriangle> &triangles){
+    float total = 0;
+
+    for(auto &light : points){
+        glm::vec3 lightDirection = glm::normalize(light- intersectionPoint);
+        RayTriangleIntersection shadow = getClosestValidIntersection(intersectionPoint+ lightDirection* 0.001f, lightDirection, triangles);
+        if(shadow.distanceFromCamera < glm::length(light- intersectionPoint)){
+            total+=1;
+        }
+    }
+    float result = 1 - (total/ points.size());
+    return result;
+}
+
+
+
+//drawSoftshadow(window, modelTriangles, depth);
+void drawSoftshadow(DrawingWindow &window, std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> &depth){
+    window.clearPixels();
+    float ambient = 0.3;
+
+
+    for(int y = 0; y < window.height; y++) {
+        for (int x = 0; x < window.width; x++) {
+            glm::vec3 calculateDirection = cameraPosition + cameraOrientation * glm::vec3((x - window.width / 2.0) * (1.0 / (window.height * 2.0 / 3.0)),-((y - window.height / 2.0) * (1.0 / (window.height * 2.0 / 3.0))), -focalLength);
+            glm::vec3 rayDirection = glm::normalize(calculateDirection - cameraPosition);
+            RayTriangleIntersection intersection = getClosestValidIntersection(cameraPosition, rayDirection, triangles);
+
+
+                ModelTriangle normTriangle = intersection.intersectedTriangle;
+                glm::vec3 e1 = normTriangle.vertices[1] - normTriangle.vertices[0];
+                glm::vec3 e2 = normTriangle.vertices[2] - normTriangle.vertices[0];
+
+                normTriangle.normal = glm::normalize(glm::cross(e1, e2));
+
+            if (intersection.distanceFromCamera != std::numeric_limits<float>::max()) {
+                float proximity = proximityLight(intersection.intersectionPoint);
+                float incidence = angleOfIncidentLighting(intersection.intersectionPoint, normTriangle.normal);
+                float specular = specularLighting(intersection.intersectionPoint, normTriangle.normal, 8);
+                float ambients = ambientLight(ambient);
+                std::vector<glm::vec3> softLightpoints = initSoftpoints(lightPoint, 10,0.4);
+                float shadow = calSoftshadow(intersection.intersectionPoint, softLightpoints, triangles);
+                float shadowCol = ambients + shadow * ((proximity * incidence) + specular);
+
+
+                Colour colour = normTriangle.colour;
+
+                colour.red = std::min(colour.red *shadowCol, 255.0f);
+                colour.green = std::min(colour.green *shadowCol, 255.0f);
+                colour.blue = std::min(colour.blue *shadowCol, 255.0f);
+
+                uint32_t pixcelColor = (255 << 24) + (colour.red << 16) + (colour.green << 8) + colour.blue;
+
+                window.setPixelColour(x, y, pixcelColor);
+
+
+            }
+        }
+    }}
 
 
 //drawDiffuseSpecularAmbient(window, modelTriangles, depth);
-void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
+void drawDiffuseSpecularAmbient(DrawingWindow &window, std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
     window.clearPixels();
     float ambient = 0.2;
     float lvl = 0.3;
@@ -525,7 +603,7 @@ void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTr
             && intersection.triangleIndex == light.triangleIndex) {
                 float proximity = proximityLight(intersection.intersectionPoint);
                 float incidence = angleOfIncidentLighting(intersection.intersectionPoint, normTriangle.normal);
-                float specular = specularLighting(intersection.intersectionPoint, normTriangle.normal,128); // 64 or 128 or 256
+                float specular = specularLighting(intersection.intersectionPoint, normTriangle.normal,64); // 64 or 128 or 256
                 float ambients = ambientLight(ambient);
                 float brightness = ambients + (proximity * incidence) + specular;
 
@@ -554,7 +632,7 @@ void drawDiffuseSpecularAmbient(DrawingWindow &window, const std::vector<ModelTr
 
 
 
-void drawDiffuseSpecularAmbientSphere(DrawingWindow &window, const std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
+void drawDiffuseSpecularAmbientSphere(DrawingWindow &window, std::vector<ModelTriangle> &triangles, std::vector<std::vector<float>> & depth){
     float ambient = 0.2;
 
 
@@ -686,11 +764,10 @@ int main(int argc, char *argv[]) {
 
 
     std::vector<std::vector<float>> depth = depthBuffer(WIDTH, HEIGHT);
-    // std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
-    // std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/cornell-box.obj", mapping, 0.35);
-
-    std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
-    std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/sphere.obj", mapping, 0.35);
+     std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
+     std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/cornell-box.obj", mapping, 0.35);
+    //std::map<std::string, Colour> mapping = readMtl("./src/cornell-box.mtl");
+    //std::vector<ModelTriangle> modelTriangles = loadOBJ("./src/sphere.obj", mapping, 0.35);
 
     //drawWireframeView(window, modelTriangles);
 
@@ -722,13 +799,15 @@ int main(int argc, char *argv[]) {
 
 
         window.clearPixels();
+
         //drawWireframeColour(window, modelTriangles, depth );
         //orbit();
-        //drawShadow(window, modelTriangles, depth);
+        // drawShadow(window, modelTriangles, depth);
         //draw(window);
         //drawRasterisedScene(window, modelTriangles, depth);
          //drawDiffuseSpecularAmbient(window, modelTriangles, depth);
-        drawDiffuseSpecularAmbientSphere(window, modelTriangles, depth);
+        //drawDiffuseSpecularAmbientSphere(window, modelTriangles, depth);
+        drawSoftshadow(window, modelTriangles, depth);
 
         // Need to render the frame at the end, or nothing actually gets shown on the screen !
         window.renderFrame();
