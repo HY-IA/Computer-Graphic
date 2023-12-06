@@ -804,10 +804,10 @@ int main(int argc, char *argv[]) {
         //orbit();
         // drawShadow(window, modelTriangles, depth);
         //draw(window);
-        //drawRasterisedScene(window, modelTriangles, depth);
+        drawRasterisedScene(window, modelTriangles, depth);
          //drawDiffuseSpecularAmbient(window, modelTriangles, depth);
         //drawDiffuseSpecularAmbientSphere(window, modelTriangles, depth);
-        drawSoftshadow(window, modelTriangles, depth);
+        //drawSoftshadow(window, modelTriangles, depth);
 
         // Need to render the frame at the end, or nothing actually gets shown on the screen !
         window.renderFrame();
