@@ -16,7 +16,7 @@
 #define WIDTH 320
 #define HEIGHT 240
 
-glm::vec3 lightPoint = glm::vec3(0.0, 0.5, 0.5);
+glm::vec3 lightPoint = glm::vec3(-0.3, 0.5, 0.5);
 glm::vec3 cameraPosition = glm::vec3(0.0, 0.0, 4.0);
 glm::mat3 cameraOrientation = glm::mat3(1.0); // identity matrix //
 float focalLength = 2.0;
@@ -554,7 +554,7 @@ void drawSoftshadow(DrawingWindow &window, std::vector<ModelTriangle> &triangles
             if (intersection.distanceFromCamera != std::numeric_limits<float>::max()) {
                 float proximity = proximityLight(intersection.intersectionPoint);
                 float incidence = angleOfIncidentLighting(intersection.intersectionPoint, normTriangle.normal);
-                float specular = specularLighting(intersection.intersectionPoint, normTriangle.normal, 8);
+                float specular = specularLighting(intersection.intersectionPoint, normTriangle.normal, 256);
                 float ambients = ambientLight(ambient);
                 std::vector<glm::vec3> softLightpoints = initSoftpoints(lightPoint, 10,0.4);
                 float shadow = calSoftshadow(intersection.intersectionPoint, softLightpoints, triangles);
@@ -804,10 +804,10 @@ int main(int argc, char *argv[]) {
         //orbit();
         // drawShadow(window, modelTriangles, depth);
         //draw(window);
-        drawRasterisedScene(window, modelTriangles, depth);
+        //drawRasterisedScene(window, modelTriangles, depth);
          //drawDiffuseSpecularAmbient(window, modelTriangles, depth);
         //drawDiffuseSpecularAmbientSphere(window, modelTriangles, depth);
-        //drawSoftshadow(window, modelTriangles, depth);
+        drawSoftshadow(window, modelTriangles, depth);
 
         // Need to render the frame at the end, or nothing actually gets shown on the screen !
         window.renderFrame();
